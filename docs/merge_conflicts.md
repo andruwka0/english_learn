@@ -24,6 +24,20 @@ git status
 
 Open each listed file (for example `app/cat_engine.py`, `app/item_bank.py`, `app/main.py`, `requirements.txt`, `tests/test_api_flow.py`) and decide which pieces to keep. Often you need to combine logic from both sides instead of choosing one block entirely.
 
+### Example: `DOMAIN_TARGETS` conflict in `app/cat_engine.py`
+
+If you encounter a block like the screenshot below while merging:
+
+```
+<<<<<<< HEAD
+DOMAIN_TARGETS = {part: 10 for part in CAT_PARTS}
+=======
+DOMAIN_TARGETS = {...}  # numbers inlined per section
+>>>>>>> main
+```
+
+Choose the version that keeps the dictionary comprehension (`Accept Current Change` in VS Code). The comprehension ensures every entry in `CAT_PARTS` automatically receives the same target count, so adding a new section in the future does not require touching two separate places. After picking that side, delete the conflict markers and save the file before continuing with the rest of the resolution steps.
+
 ## 3. Edit and test
 
 After editing a file, remove the conflict markers and make sure the result compiles. When all conflicts are fixed:
