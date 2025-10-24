@@ -869,6 +869,7 @@ def build_listening_items() -> List[Item]:
     items: List[Item] = []
     audio_count = len(LISTENING_AUDIO_URLS)
     focuses_count = len(LISTENING_FOCUSES)
+    true_false_counter = 1
     for scenario_index, scenario in enumerate(LISTENING_SCENARIOS):
         audio_url = LISTENING_AUDIO_URLS[scenario_index % audio_count]
         for focus_index, focus in enumerate(LISTENING_FOCUSES):
@@ -901,6 +902,53 @@ def build_listening_items() -> List[Item]:
                         "transcript": scenario.transcript,
                         "difficulty": scenario.difficulty,
                         "topic": scenario.topic,
+                        "question_type": "multiple_choice",
+                    },
+                )
+            )
+
+            # Generate a paired true/false question for the same scenario and focus
+            pool_false = [text for text in statements[focus] if text != correct]
+            if pool_false:
+                false_statement = pool_false[(scenario_index + focus_index) % len(pool_false)]
+            else:
+                # fallback to any statement outside the current scenario
+                fallback = [
+                    text
+                    for other_focus, texts in statements.items()
+                    if other_focus != focus
+                    for text in texts
+                ]
+                if not fallback:
+                    fallback = [correct]
+                false_statement = fallback[(scenario_index + focus_index) % len(fallback)]
+            use_true = (scenario_index + focus_index) % 2 == 0
+            statement = correct if use_true else false_statement
+            correct_key = 0 if use_true else 1
+            tf_item_id = f"listening_tf_{true_false_counter:03d}"
+            true_false_counter += 1
+            items.append(
+                Item(
+                    id=tf_item_id,
+                    domain="listening",
+                    stem=(
+                        "[Listening • {topic}] The speaker states: \"{statement}\". "
+                        "Is this true or false?"
+                    ).format(topic=scenario.topic, statement=statement),
+                    options=["True", "False"],
+                    correct_key=correct_key,
+                    model="3pl",
+                    irt_a=round(0.95 + 0.04 * focus_index, 2),
+                    irt_b=round(scenario.base_b + 0.2 * (focus_index - (focuses_count - 1) / 2), 2),
+                    irt_c=0.5,
+                    max_plays=2,
+                    metadata={
+                        "audio_url": audio_url,
+                        "transcript": scenario.transcript,
+                        "difficulty": scenario.difficulty,
+                        "topic": scenario.topic,
+                        "question_type": "true_false",
+                        "statement": statement,
                     },
                 )
             )

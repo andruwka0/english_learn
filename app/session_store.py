@@ -13,7 +13,7 @@ LEVEL_PRIORS = {
 }
 
 
-def create_session(start_level: str) -> Session:
+def create_session(start_level: str, first_name: str, last_name: str) -> Session:
     mu, sigma2 = LEVEL_PRIORS[start_level]
     session = Session(
         id=str(uuid4()),
@@ -22,6 +22,8 @@ def create_session(start_level: str) -> Session:
         prior_mu=mu,
         prior_sigma=sigma2 ** 0.5,
         se=float("inf"),
+        first_name=first_name,
+        last_name=last_name,
     )
     _SESSIONS[UUID(session.id)] = session
     return session

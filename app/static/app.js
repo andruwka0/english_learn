@@ -5,11 +5,18 @@ const state = {
   se: null,
   listening: null,
   finished: false,
+  pauseDomain: null,
+  timerStartedAt: null,
+  timerInterval: null,
 };
 
 const startForm = document.getElementById('start-form');
 const startPanel = document.getElementById('start-panel');
 const startStatus = document.getElementById('start-status');
+const pausePanel = document.getElementById('pause-panel');
+const pauseTitle = document.getElementById('pause-title');
+const pauseMessage = document.getElementById('pause-message');
+const resumeButton = document.getElementById('resume-section');
 const questionPanel = document.getElementById('question-panel');
 const questionDomain = document.getElementById('question-domain');
 const questionMetadata = document.getElementById('question-metadata');
@@ -20,6 +27,7 @@ const finishBtn = document.getElementById('finish-test');
 const answerStatus = document.getElementById('answer-status');
 const thetaValue = document.getElementById('theta-value');
 const seValue = document.getElementById('se-value');
+const timerDisplay = document.getElementById('timer-display');
 const reportPanel = document.getElementById('report-panel');
 const reportSummary = document.getElementById('report-summary');
 const reportTable = document.getElementById('report-table');
@@ -29,18 +37,44 @@ const listeningContainer = document.getElementById('listening-container');
 let listeningAudio = document.getElementById('listening-audio');
 const playCounter = document.getElementById('play-counter');
 
+resumeButton.addEventListener('click', async () => {
+  if (!state.testId) return;
+  resumeButton.disabled = true;
+  try {
+    const response = await fetch(`/api/test/${state.testId}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+      throw new Error((await response.json()).detail || 'Unable to resume section');
+    }
+    await fetchNextItem();
+  } catch (error) {
+    pauseMessage.textContent = error.message;
+  } finally {
+    resumeButton.disabled = false;
+  }
+});
+
 startForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (state.testId) {
     await resetUI();
   }
-  const level = new FormData(startForm).get('start-level');
+  const formData = new FormData(startForm);
+  const level = formData.get('start-level');
+  const firstName = formData.get('first-name');
+  const lastName = formData.get('last-name');
   startStatus.textContent = 'Starting adaptive session…';
   try {
     const response = await fetch('/api/test/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ start_level: level }),
+      body: JSON.stringify({
+        start_level: level,
+        first_name: firstName,
+        last_name: lastName,
+      }),
     });
     if (!response.ok) {
       throw new Error((await response.json()).detail || 'Failed to start test');
@@ -49,8 +83,12 @@ startForm.addEventListener('submit', async (event) => {
     state.testId = data.test_id;
     state.theta = data.theta;
     state.se = data.se;
-    startStatus.textContent = 'Session ready. The first question is loading…';
-    showPanel(questionPanel);
+    state.timerStartedAt = Date.now();
+    startTimer();
+    startStatus.textContent = 'Session ready. Take a pause before the first section.';
+    state.pauseDomain = data.upcoming_part;
+    showPanel(pausePanel);
+    updatePauseMessage(data.upcoming_part);
     updateProgress();
     await fetchNextItem();
   } catch (error) {
@@ -67,7 +105,15 @@ async function fetchNextItem() {
       throw new Error((await response.json()).detail || 'No more items available');
     }
     const item = await response.json();
+    if (item.pause) {
+      state.pauseDomain = item.domain;
+      updatePauseMessage(item.domain, item.questions);
+      showPanel(pausePanel);
+      answerStatus.textContent = '';
+      return;
+    }
     state.currentItem = item;
+    showPanel(questionPanel);
     renderItem(item);
     answerStatus.textContent = '';
   } catch (error) {
@@ -258,6 +304,7 @@ async function finishTest() {
     state.theta = data.theta;
     state.se = data.se;
     state.finished = true;
+    stopTimer();
     updateProgress();
     await loadReport();
   } catch (error) {
@@ -312,6 +359,9 @@ async function resetUI() {
   state.se = null;
   state.finished = false;
   state.listening = null;
+  state.pauseDomain = null;
+  stopTimer();
+  state.timerStartedAt = null;
   answerForm.innerHTML = '';
   itemStem.textContent = 'Select start to begin.';
   questionMetadata.textContent = '';
@@ -319,6 +369,7 @@ async function resetUI() {
   answerStatus.textContent = '';
   thetaValue.textContent = 'θ = –';
   seValue.textContent = 'SE = –';
+  timerDisplay.textContent = 'Elapsed 00:00';
   listeningContainer.classList.add('hidden');
   listeningAudio.pause();
   listeningAudio.removeAttribute('src');
@@ -337,8 +388,44 @@ function updateProgress() {
   }
 }
 
+function updatePauseMessage(domain, questions = 0) {
+  if (!domain) {
+    pauseTitle.textContent = 'Section pause';
+    pauseMessage.textContent = 'Take a moment before moving to the next part of the test.';
+    return;
+  }
+  const title = `${capitalize(domain)} section`;
+  pauseTitle.textContent = title;
+  const questionsInfo = questions > 0 ? ` (${questions} questions)` : '';
+  pauseMessage.textContent = `Next up: ${capitalize(domain)}${questionsInfo}. Press “Start section” when you are ready.`;
+}
+
+function startTimer() {
+  stopTimer();
+  updateTimerDisplay();
+  state.timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function stopTimer() {
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+    state.timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  if (!state.timerStartedAt) {
+    timerDisplay.textContent = 'Elapsed 00:00';
+    return;
+  }
+  const elapsedSeconds = Math.floor((Date.now() - state.timerStartedAt) / 1000);
+  const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+  const seconds = String(elapsedSeconds % 60).padStart(2, '0');
+  timerDisplay.textContent = `Elapsed ${minutes}:${seconds}`;
+}
+
 function showPanel(panel) {
-  [startPanel, questionPanel, reportPanel].forEach((element) => {
+  [startPanel, pausePanel, questionPanel, reportPanel].forEach((element) => {
     element.classList.toggle('hidden', element !== panel);
   });
 }

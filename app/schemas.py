@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from app.cat_engine import CAT_PARTS
+from app.cat_engine import CAT_PARTS, DOMAIN_TARGETS
 
 
 def dataclass_from_dict(cls, data):
@@ -20,12 +20,18 @@ def dataclass_from_dict(cls, data):
 @dataclass
 class StartTestRequest:
     start_level: str
+    first_name: str
+    last_name: str
 
     def __post_init__(self) -> None:
         normalized = self.start_level.lower()
         if normalized not in {"easy", "middle", "hard"}:
             raise ValueError("start_level must be one of easy/middle/hard")
         self.start_level = normalized
+        self.first_name = self.first_name.strip()
+        self.last_name = self.last_name.strip()
+        if not self.first_name or not self.last_name:
+            raise ValueError("first_name and last_name are required")
 
     @classmethod
     def from_dict(cls, data: Dict[str, object]) -> "StartTestRequest":
@@ -38,9 +44,16 @@ class StartTestResponse:
     theta: float
     se: float
     current_part: str
+    paused: bool
+    upcoming_part: Optional[str]
 
     def to_dict(self) -> Dict[str, object]:
-        return {**asdict(self), "test_id": str(self.test_id)}
+        payload = asdict(self)
+        payload["test_id"] = str(self.test_id)
+        return payload
+
+
+DOMAIN_LENGTHS: Dict[str, int] = {part: DOMAIN_TARGETS.get(part, 0) for part in CAT_PARTS}
 
 
 @dataclass
@@ -77,6 +90,25 @@ class AnswerResponse:
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
+
+
+@dataclass
+class PauseResponse:
+    pause: bool = field(default=True, init=False)
+    domain: str = ""
+    message: str = ""
+    questions: int = 0
+
+    def to_dict(self) -> Dict[str, object]:
+        return {"pause": True, "domain": self.domain, "message": self.message, "questions": self.questions}
+
+
+@dataclass
+class ResumeResponse:
+    domain: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return {"domain": self.domain}
 
 
 @dataclass

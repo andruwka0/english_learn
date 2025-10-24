@@ -102,6 +102,15 @@ def dispatch(method: str, raw_path: str, body: bytes) -> Tuple[int, Dict[str, st
                 except ValueError as exc:
                     return _json_error(str(exc), status=404)
 
+            if action == "resume" and len(parts) == 4:
+                if method != "POST":
+                    return _json_error("Method not allowed", status=405)
+                try:
+                    data = _service.resume_section(test_id)
+                    return _json_response(data)
+                except ValueError as exc:
+                    return _json_error(str(exc))
+
             if action == "answer" and len(parts) == 4:
                 if method != "POST":
                     return _json_error("Method not allowed", status=405)

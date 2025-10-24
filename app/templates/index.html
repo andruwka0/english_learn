@@ -21,6 +21,12 @@
       <section class="panel" id="start-panel">
         <h2>Start a new test</h2>
         <form id="start-form" class="form-grid">
+          <label for="first-name">First name</label>
+          <input id="first-name" name="first-name" type="text" required placeholder="Jane" />
+
+          <label for="last-name">Last name</label>
+          <input id="last-name" name="last-name" type="text" required placeholder="Doe" />
+
           <label for="start-level">Choose your starting level</label>
           <select id="start-level" name="start-level" required>
             <option value="easy">Easy (A1–A2)</option>
@@ -30,6 +36,12 @@
           <button type="submit" class="primary">Start adaptive test</button>
         </form>
         <div class="status" id="start-status"></div>
+      </section>
+
+      <section class="panel hidden" id="pause-panel">
+        <h2 id="pause-title">Section pause</h2>
+        <p id="pause-message"></p>
+        <button id="resume-section" type="button" class="primary">Start section</button>
       </section>
 
       <section class="panel hidden" id="question-panel">
@@ -42,6 +54,7 @@
             <span id="theta-value">θ = –</span>
             <span id="se-value">SE = –</span>
           </div>
+          <div class="timer" id="timer-display">Elapsed 00:00</div>
         </div>
 
         <article>

@@ -125,6 +125,7 @@ select {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 1.25rem;
 }
 
@@ -136,6 +137,14 @@ select {
   background: rgba(37, 99, 235, 0.1);
   border-radius: 12px;
   padding: 0.6rem 0.9rem;
+}
+
+.timer {
+  align-self: center;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.15);
 }
 
 .stem {

@@ -2,12 +2,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Sequence
 import math
 
 
-CAT_PARTS = ["vocabulary", "grammar", "listening", "english_in_use"]
-DOMAIN_TARGETS = {part: 10 for part in CAT_PARTS}
+CAT_PARTS = ["grammar", "vocabulary", "english_in_use", "listening"]
+DOMAIN_TARGETS = {
+    "grammar": 15,
+    "vocabulary": 20,
+    "english_in_use": 16,
+    "listening": 12,
+}
 
 
 @dataclass
@@ -59,17 +65,30 @@ class Session:
     pending_item_id: Optional[str] = None
     part_counts: Dict[str, int] = field(default_factory=lambda: {part: 0 for part in CAT_PARTS})
     item_history: Dict[str, Item] = field(default_factory=dict)
+    first_name: str = ""
+    last_name: str = ""
+    started_at: datetime = field(default_factory=datetime.utcnow)
+    paused: bool = True
+    upcoming_domain: Optional[str] = None
 
     def current_domain(self) -> str:
         return CAT_PARTS[self.part_index]
+
+    def __post_init__(self) -> None:
+        if self.upcoming_domain is None and CAT_PARTS:
+            self.upcoming_domain = CAT_PARTS[self.part_index]
 
     def advance_part(self) -> None:
         if self.part_index < len(CAT_PARTS) - 1:
             self.part_index += 1
             self.pending_item_id = None
+            self.paused = True
+            self.upcoming_domain = CAT_PARTS[self.part_index]
         else:
             self.finished = True
             self.pending_item_id = None
+            self.paused = False
+            self.upcoming_domain = None
 
     def record_domain_progress(self, domain: str) -> None:
         if domain not in self.part_counts:
@@ -83,6 +102,11 @@ class Session:
             and domain == CAT_PARTS[self.part_index]
         ):
             self.advance_part()
+
+    def resume_current_part(self) -> None:
+        self.paused = False
+        self.upcoming_domain = CAT_PARTS[self.part_index]
+        self.pending_item_id = None
 
 
 def logistic_2pl(theta: float, a: float, b: float) -> float:

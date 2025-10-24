@@ -1,6 +1,7 @@
 """Service layer implementing the Adaptive English Level Test logic."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
@@ -16,10 +17,18 @@ from .cat_engine import (
     update_theta_map,
     it_lookup,
 )
+from .database import (
+    init_db,
+    record_response,
+    record_test_finish,
+    record_test_start,
+    update_test_state,
+)
 from .item_bank import ITEMS
 from .session_store import create_session, get_session
 
 register_item_bank(ITEMS)
+init_db()
 
 
 class AdaptiveTestService:
@@ -36,18 +45,30 @@ class AdaptiveTestService:
 
     def start_test(self, payload: Dict[str, object]) -> Dict[str, object]:
         request = schemas.StartTestRequest.from_dict(payload)
-        session = create_session(request.start_level)
+        session = create_session(request.start_level, request.first_name, request.last_name)
+        record_test_start(
+            session.id,
+            session.first_name,
+            session.last_name,
+            session.start_level,
+            session.started_at,
+            session.upcoming_domain,
+        )
         response = schemas.StartTestResponse(
             test_id=UUID(session.id),
             theta=session.theta,
             se=session.se,
             current_part=session.current_domain(),
+            paused=session.paused,
+            upcoming_part=session.upcoming_domain,
         )
         return response.to_dict()
 
     def _ensure_next_item(self, session: Session) -> Item:
         if session.finished:
             raise ValueError("Test already finished")
+        if session.paused:
+            raise ValueError("Test section is paused")
         item = select_next_item(session, self._items)
         if item is None:
             if session.pending_item_id is not None:
@@ -59,6 +80,13 @@ class AdaptiveTestService:
 
     def get_next_item(self, test_id: UUID) -> Dict[str, object]:
         session = self._get_session(test_id)
+        if session.paused:
+            response = schemas.PauseResponse(
+                domain=session.upcoming_domain or session.current_domain(),
+                message="Take a short break before continuing to the next section.",
+                questions=schemas.DOMAIN_LENGTHS.get(session.upcoming_domain or session.current_domain(), 0),
+            )
+            return response.to_dict()
         item = self._ensure_next_item(session)
         response = schemas.ItemResponse(
             item_id=item.id,
@@ -75,6 +103,8 @@ class AdaptiveTestService:
         session = self._get_session(test_id)
         if session.finished:
             raise ValueError("Test already finished")
+        if session.paused:
+            raise ValueError("Resume the section before submitting answers")
         request = schemas.AnswerRequest.from_dict(payload)
         item = session.item_history.get(request.item_id)
         if item is None:
@@ -97,11 +127,15 @@ class AdaptiveTestService:
                 raw_response=request.response,
             )
         )
+        record_response(session.id, item.id, item.domain, score, datetime.utcnow())
         session.record_domain_progress(item.domain)
         session.pending_item_id = None
         next_part: Optional[str] = None
-        if len(session.responses) >= 40 or session.se <= 0.32:
-            session.finished = True
+        if session.finished:
+            next_part = None
+        elif session.paused:
+            next_part = session.upcoming_domain
+            update_test_state(session.id, session.upcoming_domain, True)
         else:
             next_part = session.current_domain()
         response = schemas.AnswerResponse(
@@ -135,6 +169,9 @@ class AdaptiveTestService:
         session = self._get_session(test_id)
         session.finished = True
         session.pending_item_id = None
+        session.paused = False
+        session.upcoming_domain = None
+        record_test_finish(session.id, datetime.utcnow())
         t_score = 50 + 10 * session.theta
         response = schemas.FinishResponse(
             theta=session.theta,
@@ -159,6 +196,16 @@ class AdaptiveTestService:
             domains=breakdown,
         )
         return response.to_dict()
+
+    def resume_section(self, test_id: UUID) -> Dict[str, object]:
+        session = self._get_session(test_id)
+        if session.finished:
+            raise ValueError("Test already finished")
+        if not session.paused:
+            return schemas.ResumeResponse(domain=session.current_domain()).to_dict()
+        session.resume_current_part()
+        update_test_state(session.id, session.current_domain(), False)
+        return schemas.ResumeResponse(domain=session.current_domain()).to_dict()
 
     @staticmethod
     def _cefr_level(theta: float) -> str:
