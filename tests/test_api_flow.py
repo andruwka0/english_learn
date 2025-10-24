@@ -4,7 +4,11 @@ import pathlib
 import sys
 from uuid import UUID
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
+# Ensure the repository root (which contains the ``app`` package) is on sys.path
+for candidate in pathlib.Path(__file__).resolve().parents:
+    if (candidate / "app").exists():
+        sys.path.insert(0, str(candidate))
+        break
 
 from app.item_bank import ITEMS
 from app.main import AdaptiveTestService

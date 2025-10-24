@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import pathlib
+import sys
+
+for candidate in pathlib.Path(__file__).resolve().parents:
+    if (candidate / "app").exists():
+        sys.path.insert(0, str(candidate))
+        break
+
 from app.cat_engine import (
     Item,
     Response,
