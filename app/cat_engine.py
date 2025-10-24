@@ -58,6 +58,7 @@ class Session:
     seen_items: set[str] = field(default_factory=set)
     pending_item_id: Optional[str] = None
     part_counts: Dict[str, int] = field(default_factory=lambda: {part: 0 for part in CAT_PARTS})
+    item_history: Dict[str, Item] = field(default_factory=dict)
 
     def current_domain(self) -> str:
         return CAT_PARTS[self.part_index]
@@ -205,7 +206,15 @@ def update_theta_map(
     tolerance: float = 1e-4,
 ) -> tuple[float, float]:
     theta = session.theta
-    responses = [(it, resp.score) for resp in session.responses for it in [it_lookup[resp.item_id]]] + [(item, score)]
+    responses: list[tuple[Item, float]] = []
+    for record in session.responses:
+        previous = session.item_history.get(record.item_id)
+        if previous is None:
+            previous = it_lookup.get(record.item_id)
+        if previous is None:
+            continue
+        responses.append((previous, record.score))
+    responses.append((item, score))
     for _ in range(max_iter):
         ll1, ll2 = log_likelihood_derivatives(theta, responses)
         prior1 = (session.prior_mu - theta) / (session.prior_sigma ** 2)
@@ -239,7 +248,11 @@ def register_item_bank(items: Iterable[Item]) -> None:
 def select_next_item(session: Session, candidate_items: Iterable[Item]) -> Optional[Item]:
     if session.pending_item_id:
         return it_lookup.get(session.pending_item_id)
-    domain_items = [item for item in candidate_items if item.domain == session.current_domain() and item.id not in session.seen_items]
+    domain_items = [
+        item
+        for item in candidate_items
+        if item.domain == session.current_domain() and item.id not in session.seen_items
+    ]
     if not domain_items:
         # advance to next part if possible
         session.advance_part()
@@ -249,6 +262,7 @@ def select_next_item(session: Session, candidate_items: Iterable[Item]) -> Optio
     best_item = max(domain_items, key=lambda item: fisher_information(item, session.theta))
     session.seen_items.add(best_item.id)
     session.pending_item_id = best_item.id
+    session.item_history[best_item.id] = best_item
     return best_item
 
 
