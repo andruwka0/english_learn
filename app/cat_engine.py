@@ -7,6 +7,7 @@ import math
 
 
 CAT_PARTS = ["vocabulary", "grammar", "listening", "english_in_use"]
+DOMAIN_TARGETS = {part: 10 for part in CAT_PARTS}
 
 
 @dataclass
@@ -56,6 +57,8 @@ class Session:
     plays: Dict[str, int] = field(default_factory=dict)
     seen_items: set[str] = field(default_factory=set)
     pending_item_id: Optional[str] = None
+    part_counts: Dict[str, int] = field(default_factory=lambda: {part: 0 for part in CAT_PARTS})
+    item_history: Dict[str, Item] = field(default_factory=dict)
 
     def current_domain(self) -> str:
         return CAT_PARTS[self.part_index]
@@ -68,15 +71,29 @@ class Session:
             self.finished = True
             self.pending_item_id = None
 
+    def record_domain_progress(self, domain: str) -> None:
+        if domain not in self.part_counts:
+            self.part_counts[domain] = 0
+        self.part_counts[domain] += 1
+        target = DOMAIN_TARGETS.get(domain)
+        if (
+            target is not None
+            and self.part_counts[domain] >= target
+            and not self.finished
+            and domain == CAT_PARTS[self.part_index]
+        ):
+            self.advance_part()
+
 
 def logistic_2pl(theta: float, a: float, b: float) -> float:
-    """Probability of success for the 2PL model."""
+    """Probability of success for the 2PL model with numerical stability."""
+
     exponent = -a * (theta - b)
-    if exponent > 30:  # prevent overflow
-        return 0.0
-    if exponent < -30:
-        return 1.0
-    return 1.0 / (1.0 + math.exp(exponent))
+    if exponent >= 0:
+        z = math.exp(-exponent)
+        return z / (1.0 + z)
+    z = math.exp(exponent)
+    return 1.0 / (1.0 + z)
 
 
 def logistic_3pl(theta: float, a: float, b: float, c: float) -> float:
@@ -94,7 +111,8 @@ def gpcm_probabilities(item: Item, theta: float) -> List[float]:
     for step in steps:
         cumulative += item.irt_a * (theta - step)
         eta.append(cumulative)
-    exps = [math.exp(value) for value in eta]
+    max_eta = max(eta)
+    exps = [math.exp(value - max_eta) for value in eta]
     denom = sum(exps)
     if denom == 0:
         return [1.0 / len(exps)] * len(exps)
@@ -102,14 +120,17 @@ def gpcm_probabilities(item: Item, theta: float) -> List[float]:
 
 
 def fisher_information(item: Item, theta: float) -> float:
+    eps = 1e-9
     if item.model.lower() == "3pl":
         p = logistic_3pl(theta, item.irt_a, item.irt_b, item.irt_c)
+        p = min(max(p, eps), 1.0 - eps)
         q = 1.0 - p
         numerator = (p - item.irt_c) ** 2
-        denom = (1.0 - item.irt_c) ** 2
+        denom = max((1.0 - item.irt_c) ** 2, eps)
         return (item.irt_a ** 2) * (numerator / denom) * (q / p)
     if item.model.lower() == "2pl":
         p = logistic_2pl(theta, item.irt_a, item.irt_b)
+        p = min(max(p, eps), 1.0 - eps)
         q = 1.0 - p
         return (item.irt_a ** 2) * p * q
     if item.model.lower() == "gpcm":
@@ -121,6 +142,23 @@ def fisher_information(item: Item, theta: float) -> float:
     raise ValueError(f"Unsupported model: {item.model}")
 
 
+def _binary_derivatives(
+    score: float,
+    p: float,
+    dp: float,
+    d2p: float,
+) -> tuple[float, float]:
+    eps = 1e-9
+    p = min(max(p, eps), 1.0 - eps)
+    q = 1.0 - p
+    c = p * q
+    residual = score - p
+    grad = residual * dp / c
+    c_prime = dp * (1.0 - 2.0 * p)
+    hess = (-dp * dp + residual * d2p) / c - (residual * dp * c_prime) / (c * c)
+    return grad, hess
+
+
 def log_likelihood_derivatives(
     theta: float,
     responses: Iterable[tuple[Item, float]],
@@ -129,11 +167,24 @@ def log_likelihood_derivatives(
     second = 0.0
     for item, score in responses:
         model = item.model.lower()
-        if model in {"2pl", "3pl"}:
-            p = logistic_3pl(theta, item.irt_a, item.irt_b, item.irt_c) if model == "3pl" else logistic_2pl(theta, item.irt_a, item.irt_b)
+        if model == "2pl":
+            p = logistic_2pl(theta, item.irt_a, item.irt_b)
             q = 1.0 - p
-            d1 = item.irt_a * (score - p) / (p * (1.0 - item.irt_c)) if model == "3pl" else item.irt_a * (score - p)
-            d2 = - (item.irt_a ** 2) * (q * (1.0 - 2 * p))
+            dp = item.irt_a * p * q
+            d2p = (item.irt_a ** 2) * p * q * (1.0 - 2.0 * p)
+            d1, d2 = _binary_derivatives(score, p, dp, d2p)
+        elif model == "3pl":
+            base = logistic_2pl(theta, item.irt_a, item.irt_b)
+            p = logistic_3pl(theta, item.irt_a, item.irt_b, item.irt_c)
+            dp = (1.0 - item.irt_c) * item.irt_a * base * (1.0 - base)
+            d2p = (
+                (1.0 - item.irt_c)
+                * (item.irt_a ** 2)
+                * base
+                * (1.0 - base)
+                * (1.0 - 2.0 * base)
+            )
+            d1, d2 = _binary_derivatives(score, p, dp, d2p)
         elif model == "gpcm":
             probs = gpcm_probabilities(item, theta)
             expected = sum(idx * prob for idx, prob in enumerate(probs))
@@ -155,7 +206,15 @@ def update_theta_map(
     tolerance: float = 1e-4,
 ) -> tuple[float, float]:
     theta = session.theta
-    responses = [(it, resp.score) for resp in session.responses for it in [it_lookup[resp.item_id]]] + [(item, score)]
+    responses: list[tuple[Item, float]] = []
+    for record in session.responses:
+        previous = session.item_history.get(record.item_id)
+        if previous is None:
+            previous = it_lookup.get(record.item_id)
+        if previous is None:
+            continue
+        responses.append((previous, record.score))
+    responses.append((item, score))
     for _ in range(max_iter):
         ll1, ll2 = log_likelihood_derivatives(theta, responses)
         prior1 = (session.prior_mu - theta) / (session.prior_sigma ** 2)
@@ -189,7 +248,11 @@ def register_item_bank(items: Iterable[Item]) -> None:
 def select_next_item(session: Session, candidate_items: Iterable[Item]) -> Optional[Item]:
     if session.pending_item_id:
         return it_lookup.get(session.pending_item_id)
-    domain_items = [item for item in candidate_items if item.domain == session.current_domain() and item.id not in session.seen_items]
+    domain_items = [
+        item
+        for item in candidate_items
+        if item.domain == session.current_domain() and item.id not in session.seen_items
+    ]
     if not domain_items:
         # advance to next part if possible
         session.advance_part()
@@ -199,6 +262,7 @@ def select_next_item(session: Session, candidate_items: Iterable[Item]) -> Optio
     best_item = max(domain_items, key=lambda item: fisher_information(item, session.theta))
     session.seen_items.add(best_item.id)
     session.pending_item_id = best_item.id
+    session.item_history[best_item.id] = best_item
     return best_item
 
 

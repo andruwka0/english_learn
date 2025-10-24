@@ -26,14 +26,22 @@ def test_full_adaptive_flow():
     data = test_service.start_test({"start_level": "easy"})
     test_id = UUID(data["test_id"])
 
-    for _ in range(len(ITEMS)):
-        item = test_service.get_next_item(test_id)
+    answered = 0
+    while True:
+        try:
+            item = test_service.get_next_item(test_id)
+        except ValueError:
+            break
         duplicate = test_service.get_next_item(test_id)
         assert duplicate["item_id"] == item["item_id"]
         answer_payload = {"item_id": item["item_id"], "response": {"answer": get_correct_answer(item["item_id"])}}
         answer_response = test_service.submit_answer(test_id, answer_payload)
         assert "theta" in answer_response
+        answered += 1
+        if answer_response["next_part"] is None:
+            break
 
+    assert answered > 0
     finish = test_service.finish_test(test_id)
     assert finish["completed"] is True
     report_data = test_service.get_report(test_id)

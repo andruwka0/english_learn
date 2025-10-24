@@ -76,9 +76,12 @@ class AdaptiveTestService:
         if session.finished:
             raise ValueError("Test already finished")
         request = schemas.AnswerRequest.from_dict(payload)
-        if request.item_id not in it_lookup:
+        item = session.item_history.get(request.item_id)
+        if item is None:
+            item = it_lookup.get(request.item_id)
+        if item is None:
             raise ValueError("Item not found")
-        item = it_lookup[request.item_id]
+        session.item_history[item.id] = item
         score = score_response(item, request.response)
         theta_before = session.theta
         theta_after, se = update_theta_map(session, item, score)
@@ -94,6 +97,7 @@ class AdaptiveTestService:
                 raw_response=request.response,
             )
         )
+        session.record_domain_progress(item.domain)
         session.pending_item_id = None
         next_part: Optional[str] = None
         if len(session.responses) >= 40 or session.se <= 0.32:
@@ -112,9 +116,11 @@ class AdaptiveTestService:
     def record_play(self, test_id: UUID, payload: Dict[str, object]) -> Dict[str, object]:
         session = self._get_session(test_id)
         request = schemas.PlayRequest.from_dict(payload)
-        if request.item_id not in it_lookup:
+        item = session.item_history.get(request.item_id)
+        if item is None:
+            item = it_lookup.get(request.item_id)
+        if item is None:
             raise ValueError("Item not found")
-        item = it_lookup[request.item_id]
         if item.domain != "listening":
             raise ValueError("Play tracking applies to listening items only")
         current = session.plays.get(item.id, 0)
@@ -171,7 +177,11 @@ class AdaptiveTestService:
     def _summarize_domains(self, session: Session) -> List[schemas.DomainBreakdown]:
         summary: Dict[str, List[float]] = {domain: [] for domain in CAT_PARTS}
         for resp in session.responses:
-            item = it_lookup[resp.item_id]
+            item = session.item_history.get(resp.item_id)
+            if item is None:
+                item = it_lookup.get(resp.item_id)
+            if item is None:
+                continue
             summary[item.domain].append(resp.score)
         breakdown = []
         for domain, scores in summary.items():
