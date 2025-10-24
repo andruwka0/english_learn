@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Adaptive English Level Test</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content">
+        <h1>Adaptive English Level Test</h1>
+        <p>
+          Launch a full CAT session across Vocabulary, Grammar, Listening, and English in Use. The
+          interface below talks to the same adaptive engine and item bank used by the API.
+        </p>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel" id="start-panel">
+        <h2>Start a new test</h2>
+        <form id="start-form" class="form-grid">
+          <label for="start-level">Choose your starting level</label>
+          <select id="start-level" name="start-level" required>
+            <option value="easy">Easy (A1–A2)</option>
+            <option value="middle">Middle (B1–B2)</option>
+            <option value="hard">Hard (C1–C2)</option>
+          </select>
+          <button type="submit" class="primary">Start adaptive test</button>
+        </form>
+        <div class="status" id="start-status"></div>
+      </section>
+
+      <section class="panel hidden" id="question-panel">
+        <div class="panel__header">
+          <div>
+            <h2 id="question-domain">Vocabulary</h2>
+            <p id="question-metadata"></p>
+          </div>
+          <div class="progress" id="theta-progress">
+            <span id="theta-value">θ = –</span>
+            <span id="se-value">SE = –</span>
+          </div>
+        </div>
+
+        <article>
+          <p class="stem" id="item-stem">Select start to begin.</p>
+          <div id="listening-container" class="hidden">
+            <audio id="listening-audio" controls></audio>
+            <p id="play-counter"></p>
+          </div>
+          <form id="answer-form" class="options"></form>
+        </article>
+
+        <div class="panel__footer">
+          <button id="submit-answer" class="primary" disabled>Submit answer</button>
+          <button id="finish-test" class="ghost" type="button">Finish test</button>
+        </div>
+        <div class="status" id="answer-status"></div>
+      </section>
+
+      <section class="panel hidden" id="report-panel">
+        <h2>Adaptive report</h2>
+        <div id="report-summary"></div>
+        <table id="report-table" class="report-table hidden">
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Average score</th>
+              <th>Estimated CEFR</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="actions">
+          <button id="restart" type="button" class="ghost">Start another test</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        API endpoints are available under <code>/api/...</code>. Use this page to explore the adaptive
+        flow and verify item content across four CEFR-aligned sections.
+      </p>
+    </footer>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
