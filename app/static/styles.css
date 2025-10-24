@@ -1,0 +1,237 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  line-height: 1.6;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --bg: #0f172a;
+}
+
+body {
+  margin: 0;
+  background: #0b1120;
+  color: #f8fafc;
+  min-height: 100vh;
+}
+
+.hero {
+  background: linear-gradient(120deg, rgba(37, 99, 235, 0.85), rgba(14, 165, 233, 0.65));
+  padding: 3rem 1.5rem;
+}
+
+.hero__content {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  font-weight: 700;
+}
+
+.hero p {
+  margin: 0;
+  max-width: 640px;
+  font-size: 1.05rem;
+}
+
+.layout {
+  max-width: 960px;
+  margin: -3rem auto 0;
+  padding: 0 1.5rem 4rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.panel {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.panel.hidden {
+  display: none;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.6rem;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+select,
+button,
+input[type="radio"],
+input[type="checkbox"] {
+  font-family: inherit;
+}
+
+select {
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+}
+
+.primary {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  padding: 0.65rem 1.2rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: inherit;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.status {
+  margin-top: 1rem;
+  min-height: 1.5rem;
+  font-size: 0.95rem;
+  color: rgba(148, 197, 255, 0.95);
+}
+
+.panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+}
+
+.stem {
+  font-size: 1.1rem;
+  margin-top: 0;
+}
+
+.options {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.option-row input {
+  margin-top: 0.2rem;
+}
+
+.option-row.selected {
+  border-color: rgba(37, 99, 235, 0.6);
+  background: rgba(37, 99, 235, 0.16);
+}
+
+.panel__footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+#listening-container {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+#listening-container audio {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+}
+
+.report-table th,
+.report-table td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.report-table th {
+  text-align: left;
+  font-size: 0.95rem;
+  color: rgba(191, 219, 254, 0.9);
+}
+
+.actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem 1rem 3rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+@media (max-width: 720px) {
+  .panel__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panel__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .progress {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
