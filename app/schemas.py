@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from .cat_engine import CAT_PARTS
+from app.cat_engine import CAT_PARTS
 
 
 def dataclass_from_dict(cls, data):

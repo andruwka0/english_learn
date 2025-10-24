@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Dict
 from uuid import UUID, uuid4
 
-from .cat_engine import Session
+from app.cat_engine import Session
 
 LEVEL_PRIORS = {
     "easy": (-1.5, 1.0),

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
-from .cat_engine import Item
+from app.cat_engine import Item
 
 
 def _rotate_options(options: Sequence[str], shift: int) -> Tuple[List[str], int]:

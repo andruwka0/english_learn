@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from . import schemas
-from .cat_engine import (
+from app import schemas
+from app.cat_engine import (
     CAT_PARTS,
     Response as ResponseRecord,
     Session,
@@ -16,8 +16,8 @@ from .cat_engine import (
     update_theta_map,
     it_lookup,
 )
-from .item_bank import ITEMS
-from .session_store import create_session, get_session
+from app.item_bank import ITEMS
+from app.session_store import create_session, get_session
 
 register_item_bank(ITEMS)
 
