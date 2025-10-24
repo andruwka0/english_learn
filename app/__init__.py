@@ -1,4 +1,4 @@
 """Adaptive English Level Test package."""
-from .main import AdaptiveTestService, service
+from .service import AdaptiveTestService, service
 
 __all__ = ["AdaptiveTestService", "service"]

@@ -11,7 +11,7 @@ for candidate in pathlib.Path(__file__).resolve().parents:
         break
 
 from app.item_bank import ITEMS
-from app.main import AdaptiveTestService
+from app.service import AdaptiveTestService
 from app.session_store import reset_store
 
 

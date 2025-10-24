@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from app.main import AdaptiveTestService
+from app.service import AdaptiveTestService
 
 
 app = FastAPI(title="Adaptive English Level Test")
